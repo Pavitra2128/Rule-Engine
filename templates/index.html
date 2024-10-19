@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule Engine</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        #ruleForm {
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        button {
+            background: #5cb85c;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #4cae4c;
+        }
+        #output {
+            background: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            white-space: pre-wrap; /* Preserve whitespace and line breaks */
+            max-height: 400px;
+            overflow: auto; /* Scroll if output is too long */
+            font-family: monospace;
+        }
+    </style>
+    <script>
+        async function submitRule(event) {
+            event.preventDefault(); // Prevent form submission
+            const ruleInput = document.getElementById('ruleInput').value;
+
+            const response = await fetch('/create_rule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ rule_string: ruleInput }),
+            });
+
+            const result = await response.json();
+            const output = document.getElementById('output');
+
+            if (result.ast) {
+                // Formatting the output as a string
+                const formattedAst = JSON.stringify(result.ast, null, 4); // Indent with 4 spaces
+                output.innerText = `AST:\n${formattedAst}`;
+            } else if (result.error) {
+                output.innerText = `Error: ${result.error}`;
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Rule Engine</h1>
+    <form id="ruleForm" onsubmit="submitRule(event)">
+        <label for="ruleInput">Enter Rule:</label>
+        <input type="text" id="ruleInput" required placeholder="e.g. age > 30 AND income < 50000">
+        <button type="submit">Create Rule</button>
+    </form>
+    <div id="output"></div>
+</body>
+</html>
