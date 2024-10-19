@@ -14,7 +14,7 @@
         h1 {
             color: #333;
         }
-        #ruleForm {
+        #ruleForm, #combineRulesForm {
             background: #fff;
             padding: 20px;
             border-radius: 5px;
@@ -26,7 +26,7 @@
             margin-bottom: 8px;
             font-weight: bold;
         }
-        input[type="text"] {
+        input[type="text"], textarea {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
@@ -44,7 +44,7 @@
         button:hover {
             background: #4cae4c;
         }
-        #output {
+        #output, #combineOutput {
             background: #fff;
             padding: 15px;
             border-radius: 5px;
@@ -79,15 +79,50 @@
                 output.innerText = `Error: ${result.error}`;
             }
         }
+
+        async function submitCombineRules(event) {
+            event.preventDefault(); // Prevent form submission
+            const ruleInputs = document.getElementById('combineRulesInput').value.split('\n').filter(Boolean);
+
+            const response = await fetch('/combine_rules', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ rules: ruleInputs }),
+            });
+
+            const result = await response.json();
+            const output = document.getElementById('combineOutput');
+
+            if (result.combined_ast) {
+                // Formatting the output as a string
+                const formattedCombinedAst = JSON.stringify(result.combined_ast, null, 4); // Indent with 4 spaces
+                output.innerText = `Combined AST:\n${formattedCombinedAst}`;
+            } else if (result.error) {
+                output.innerText = `Error: ${result.error}`;
+            }
+        }
     </script>
 </head>
 <body>
     <h1>Rule Engine</h1>
+    
+    <!-- Form for creating a single rule -->
     <form id="ruleForm" onsubmit="submitRule(event)">
         <label for="ruleInput">Enter Rule:</label>
         <input type="text" id="ruleInput" required placeholder="e.g. age > 30 AND income < 50000">
         <button type="submit">Create Rule</button>
     </form>
     <div id="output"></div>
+    
+    <!-- Section for combining multiple rules -->
+    <h2>Combine Rules</h2>
+    <form id="combineRulesForm" onsubmit="submitCombineRules(event)">
+        <label for="combineRulesInput">Enter Rules (one per line):</label>
+        <textarea id="combineRulesInput" rows="4" required placeholder="e.g.\nage > 30\nincome < 50000\nage < 25 OR income > 60000"></textarea>
+        <button type="submit">Combine Rules</button>
+    </form>
+    <div id="combineOutput"></div>
 </body>
 </html>

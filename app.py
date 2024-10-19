@@ -56,6 +56,36 @@ def create_rule(rule_string):
     # Start parsing the entire rule string
     return parse_expression(rule_string)
 
+def combine_rules(rules):
+    if not rules:
+        return None
+
+    asts = [create_rule(rule) for rule in rules]
+
+    # Count operators to decide on the combining strategy
+    operator_counts = {'AND': 0, 'OR': 0}
+    for rule in rules:
+        for op in operator_counts.keys():
+            operator_counts[op] += rule.count(op)
+
+    # Choose the most frequent operator as the root operator
+    root_operator = 'AND' if operator_counts['AND'] >= operator_counts['OR'] else 'OR'
+    combined_node = Node("operator", root_operator)
+
+    # Start combining ASTs
+    current = combined_node
+    for ast in asts:
+        if current.left is None:
+            current.left = ast
+        else:
+            # Create a new operator node to combine the existing left node with the new AST
+            new_operator = Node("operator", root_operator)
+            new_operator.left = current.left
+            new_operator.right = ast
+            current.left = new_operator
+
+    return combined_node
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -68,6 +98,17 @@ def create_rule_endpoint():
     try:
         ast = create_rule(rule_string)
         return jsonify({'ast': ast.to_dict()})  # Convert Node to dict for JSON serialization
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/combine_rules', methods=['POST'])
+def combine_rules_endpoint():
+    data = request.json
+    rules = data.get('rules', [])
+
+    try:
+        combined_ast = combine_rules(rules)
+        return jsonify({'combined_ast': combined_ast.to_dict()})  # Convert Node to dict for JSON serialization
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
