@@ -14,7 +14,7 @@
         h1 {
             color: #333;
         }
-        #ruleForm, #combineRulesForm {
+        #ruleForm, #combineRulesForm, #evaluateForm {
             background: #fff;
             padding: 20px;
             border-radius: 5px;
@@ -44,20 +44,20 @@
         button:hover {
             background: #4cae4c;
         }
-        #output, #combineOutput {
+        #output, #combineOutput, #evaluateOutput {
             background: #fff;
             padding: 15px;
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            white-space: pre-wrap; /* Preserve whitespace and line breaks */
+            white-space: pre-wrap;
             max-height: 400px;
-            overflow: auto; /* Scroll if output is too long */
+            overflow: auto;
             font-family: monospace;
         }
     </style>
     <script>
         async function submitRule(event) {
-            event.preventDefault(); // Prevent form submission
+            event.preventDefault();
             const ruleInput = document.getElementById('ruleInput').value;
 
             const response = await fetch('/create_rule', {
@@ -72,35 +72,67 @@
             const output = document.getElementById('output');
 
             if (result.ast) {
-                // Formatting the output as a string
-                const formattedAst = JSON.stringify(result.ast, null, 4); // Indent with 4 spaces
+                const formattedAst = JSON.stringify(result.ast, null, 4);
                 output.innerText = `AST:\n${formattedAst}`;
             } else if (result.error) {
                 output.innerText = `Error: ${result.error}`;
             }
         }
 
-        async function submitCombineRules(event) {
-            event.preventDefault(); // Prevent form submission
-            const ruleInputs = document.getElementById('combineRulesInput').value.split('\n').filter(Boolean);
+        async function combineRules(event) {
+            event.preventDefault();
+            const rules = document.getElementById('combineRulesInput').value.split('\n').filter(Boolean); // Filter out empty lines
 
             const response = await fetch('/combine_rules', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ rules: ruleInputs }),
+                body: JSON.stringify({ rules }),
             });
 
             const result = await response.json();
-            const output = document.getElementById('combineOutput');
+            const combineOutput = document.getElementById('combineOutput');
 
             if (result.combined_ast) {
-                // Formatting the output as a string
-                const formattedCombinedAst = JSON.stringify(result.combined_ast, null, 4); // Indent with 4 spaces
-                output.innerText = `Combined AST:\n${formattedCombinedAst}`;
+                const formattedAst = JSON.stringify(result.combined_ast, null, 4);
+                combineOutput.innerText = `Combined AST:\n${formattedAst}`;
             } else if (result.error) {
-                output.innerText = `Error: ${result.error}`;
+                combineOutput.innerText = `Error: ${result.error}`;
+            }
+        }
+
+        async function evaluateRule(event) {
+            event.preventDefault();
+            const attributesInput = document.getElementById('attributesInput').value.split('\n').filter(Boolean);
+            const combinedAstInput = document.getElementById('combinedAstInput').value;
+
+            const attributes = {};
+            attributesInput.forEach(attr => {
+                const [key, value] = attr.split('=');
+                if (key && value) {
+                    attributes[key.trim()] = value.trim();
+                }
+            });
+
+            const response = await fetch('/evaluate_rule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    attributes,
+                    combined_ast: JSON.parse(combinedAstInput),
+                }),
+            });
+
+            const result = await response.json();
+            const evaluateOutput = document.getElementById('evaluateOutput');
+
+            if (result.is_valid !== undefined) {
+                evaluateOutput.innerText = `Is valid: ${result.is_valid}`;
+            } else if (result.error) {
+                evaluateOutput.innerText = `Error: ${result.error}`;
             }
         }
     </script>
@@ -108,21 +140,30 @@
 <body>
     <h1>Rule Engine</h1>
     
-    <!-- Form for creating a single rule -->
-    <form id="ruleForm" onsubmit="submitRule(event)">
-        <label for="ruleInput">Enter Rule:</label>
-        <input type="text" id="ruleInput" required placeholder="e.g. age > 30 AND income < 50000">
-        <button type="submit">Create Rule</button>
-    </form>
-    <div id="output"></div>
-    
-    <!-- Section for combining multiple rules -->
-    <h2>Combine Rules</h2>
-    <form id="combineRulesForm" onsubmit="submitCombineRules(event)">
-        <label for="combineRulesInput">Enter Rules (one per line):</label>
-        <textarea id="combineRulesInput" rows="4" required placeholder="e.g.\nage > 30\nincome < 50000\nage < 25 OR income > 60000"></textarea>
-        <button type="submit">Combine Rules</button>
-    </form>
-    <div id="combineOutput"></div>
+    <div id="ruleForm">
+        <h2>Create Rule</h2>
+        <label for="ruleInput">Rule Input:</label>
+        <textarea id="ruleInput" rows="3" placeholder="Enter your rule, e.g., age > 30 AND income < 50000"></textarea>
+        <button onclick="submitRule(event)">Submit Rule</button>
+        <div id="output"></div>
+    </div>
+
+    <div id="combineRulesForm">
+        <h2>Combine Rules</h2>
+        <label for="combineRulesInput">Rules (one per line):</label>
+        <textarea id="combineRulesInput" rows="5" placeholder="Enter rules to combine, e.g., age > 30&#10;income < 50000"></textarea>
+        <button onclick="combineRules(event)">Combine Rules</button>
+        <div id="combineOutput"></div>
+    </div>
+
+    <div id="evaluateForm">
+        <h2>Evaluate Rule</h2>
+        <label for="attributesInput">Attributes (key=value, one per line):</label>
+        <textarea id="attributesInput" rows="5" placeholder="Enter attributes, e.g., age=25&#10;income=40000"></textarea>
+        <label for="combinedAstInput">Combined AST:</label>
+        <textarea id="combinedAstInput" rows="5" placeholder="Enter the combined AST JSON output"></textarea>
+        <button onclick="evaluateRule(event)">Evaluate</button>
+        <div id="evaluateOutput"></div>
+    </div>
 </body>
 </html>

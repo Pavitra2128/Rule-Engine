@@ -86,31 +86,91 @@ def combine_rules(rules):
 
     return combined_node
 
+def evaluate_rule(ast, attributes):
+    if ast.type == 'operand':
+        # For operand nodes, evaluate based on attributes
+        attribute, operator, value = ast.value.split()
+        attribute_value = attributes.get(attribute)
+
+        if attribute_value is None:
+            return False  # Attribute does not exist in attributes
+
+        # Assuming attribute_value is an integer for comparison
+        attribute_value = int(attribute_value)  
+
+        if operator == ">":
+            return attribute_value > int(value)
+        elif operator == "<":
+            return attribute_value < int(value)
+        elif operator == "==":
+            return attribute_value == int(value)
+        elif operator == "!=":
+            return attribute_value != int(value)
+        elif operator == ">=":
+            return attribute_value >= int(value)
+        elif operator == "<=":
+            return attribute_value <= int(value)
+        return False
+
+    elif ast.type == 'operator':
+        left_valid = evaluate_rule(ast.left, attributes) if ast.left else False
+        right_valid = evaluate_rule(ast.right, attributes) if ast.right else False
+
+        if ast.value == "AND":
+            return left_valid and right_valid
+        elif ast.value == "OR":
+            return left_valid or right_valid
+
+    return False
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/create_rule', methods=['POST'])
-def create_rule_endpoint():
-    data = request.json
-    rule_string = data.get('rule_string', '')
+def create_rule_route():
+    data = request.get_json()
+    rule_string = data.get('rule_string')
 
     try:
         ast = create_rule(rule_string)
-        return jsonify({'ast': ast.to_dict()})  # Convert Node to dict for JSON serialization
+        return jsonify({'ast': ast.to_dict()})
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': str(e)})
 
 @app.route('/combine_rules', methods=['POST'])
-def combine_rules_endpoint():
-    data = request.json
+def combine_rules_route():
+    data = request.get_json()
     rules = data.get('rules', [])
 
     try:
         combined_ast = combine_rules(rules)
-        return jsonify({'combined_ast': combined_ast.to_dict()})  # Convert Node to dict for JSON serialization
+        return jsonify({'combined_ast': combined_ast.to_dict()})
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': str(e)})
 
-if __name__ == "__main__":
+@app.route('/evaluate_rule', methods=['POST'])
+def evaluate_rule_route():
+    data = request.get_json()
+    attributes = data.get('attributes', {})
+    combined_ast_dict = data.get('combined_ast', {})
+
+    # Convert the combined AST dictionary back to a Node object
+    def dict_to_node(node_dict):
+        node = Node(node_dict['type'], node_dict.get('value'))
+        if 'left' in node_dict and node_dict['left']:
+            node.left = dict_to_node(node_dict['left'])
+        if 'right' in node_dict and node_dict['right']:
+            node.right = dict_to_node(node_dict['right'])
+        return node
+
+    combined_ast = dict_to_node(combined_ast_dict)
+
+    try:
+        is_valid = evaluate_rule(combined_ast, attributes)
+        return jsonify({'is_valid': is_valid})
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+if __name__ == '__main__':
     app.run(debug=True)
